@@ -64,8 +64,12 @@ func createIconAttachment(_ iconPath: String) -> UNNotificationAttachment? {
         .appendingPathComponent("sh.send.macnotifier")
     do {
         try FileManager.default.createDirectory(at: tmpDir, withIntermediateDirectories: true)
-        let tmpURL = tmpDir.appendingPathComponent(sourceURL.lastPathComponent)
-        try? FileManager.default.removeItem(at: tmpURL)
+        // Clean up previous icon copies (best-effort; may fail if another process still needs one)
+        if let old = try? FileManager.default.contentsOfDirectory(at: tmpDir, includingPropertiesForKeys: nil) {
+            for file in old { try? FileManager.default.removeItem(at: file) }
+        }
+        let ext = sourceURL.pathExtension.isEmpty ? "" : ".\(sourceURL.pathExtension)"
+        let tmpURL = tmpDir.appendingPathComponent(UUID().uuidString + ext)
         try FileManager.default.copyItem(at: sourceURL, to: tmpURL)
         return try UNNotificationAttachment(identifier: "icon", url: tmpURL, options: nil)
     } catch {
