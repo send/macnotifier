@@ -19,16 +19,21 @@ macnotifier -m "Done" -a com.github.wez.wezterm
 macnotifier -m "Done" -e "echo clicked > /tmp/test"
 macnotifier -m "Done" -e "echo clicked" -a com.github.wez.wezterm
 macnotifier -m "Done" --icon /path/to/icon.png
+
+# stdin からメッセージを読む (-m 省略時)
+echo "Hello from pipe" | macnotifier
+echo "Build failed" | macnotifier -t "CI"
 ```
 
 ## CLI インターフェース
 
 ```
 macnotifier [options]
+command | macnotifier [options]
 
 Options:
   -t, --title <text>        通知タイトル (default: "macnotifier")
-  -m, --message <text>      通知メッセージ (必須)
+  -m, --message <text>      通知メッセージ (-m 省略時は stdin から読む)
   -a, --activate <bundleId> クリック時にアプリをアクティブ化
   -e, --execute <command>   クリック時にコマンドを実行
   --sound <name>            ~/Library/Sounds または /System/Library/Sounds のサウンド名 (e.g. "Glass")
@@ -36,6 +41,7 @@ Options:
   -h, --help                ヘルプ表示
 ```
 
+- `-m` を省略して stdin をパイプすると、stdin の内容がメッセージになる
 - `-a` と `-e` は併用可能（execute 実行後に activate）
 - どちらも未指定の場合はクリックで通知を閉じるだけ
 
@@ -61,9 +67,12 @@ macnotifier/
 ├── Sources/
 │   └── main.swift              # アプリ本体
 ├── Resources/
-│   └── macnotifier.icns        # アプリアイコン (後で追加)
+│   └── AppIcon.icns            # アプリアイコン
+├── bin/
+│   └── macnotifier             # CLI ラッパースクリプト
 ├── scripts/
-│   └── build.sh                # .app バンドルビルド + ad-hoc codesign
+│   ├── build.sh                # .app バンドルビルド + ad-hoc codesign
+│   └── test.sh                 # テストスクリプト
 ├── README.md
 ├── CLAUDE.md
 ├── LICENSE
@@ -92,18 +101,11 @@ macnotifier.app/
 
 ## 配布
 
-Homebrew tap (`send/tap`) で配布する。
+Homebrew tap ([send/homebrew-tap](https://github.com/send/homebrew-tap)) で配布する。
 
-```ruby
-# Formula/macnotifier.rb
-class Macnotifier < Formula
-  desc "Modern macOS notification CLI using UNUserNotificationCenter"
-  homepage "https://github.com/send/macnotifier"
-  # ... source tarball or prebuilt .app
-end
+```sh
+brew install send/tap/macnotifier
 ```
-
-Formula は `.app` バンドルを配置し、CLI ラッパースクリプトを `bin/` にリンクする。
 
 ## ライセンス
 
