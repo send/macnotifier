@@ -83,14 +83,15 @@ func sendNotification(_ params: NotificationParams) {
 
         if let iconPath = params.icon {
             let fileURL = URL(fileURLWithPath: iconPath)
-            if let attachment = try? UNNotificationAttachment(
-                identifier: "icon",
-                url: fileURL,
-                options: nil
-            ) {
+            do {
+                let attachment = try UNNotificationAttachment(
+                    identifier: "icon",
+                    url: fileURL,
+                    options: nil
+                )
                 content.attachments = [attachment]
-            } else {
-                fputs("Warning: Failed to attach icon '\(iconPath)'\n", stderr)
+            } catch {
+                fputs("Warning: Failed to attach icon '\(iconPath)': \(error.localizedDescription)\n", stderr)
             }
         }
 
@@ -123,7 +124,7 @@ func printUsage() {
       -m, --message <message>  Notification message (required)
       -e, --execute <command>  Shell command to execute on click
       -a, --activate <id>      Bundle ID of app to activate on click
-          --sound <name>       Custom notification sound name (e.g. "Glass", "Ping")
+          --sound <file>       Sound file name in ~/Library/Sounds or /System/Library/Sounds
           --icon <path>        Path to image file to attach as icon
       -h, --help               Show this help message
     """)
