@@ -8,7 +8,6 @@ class NotificationDelegate: NSObject, UNUserNotificationCenterDelegate {
         withCompletionHandler completionHandler: @escaping () -> Void
     ) {
         let userInfo = response.notification.request.content.userInfo
-
         // Execute shell command
         if let command = userInfo["execute"] as? String {
             let task = Process()
@@ -55,21 +54,25 @@ class NotificationDelegate: NSObject, UNUserNotificationCenterDelegate {
 
 // UNNotificationAttachment moves the file into its data store,
 // so we must provide a temporary copy to avoid losing the original.
+// UNNotificationAttachment moves the file into its data store at an
+// indeterminate time, so the temp copy must outlive both init and center.add().
+// A fixed temp directory is reused so at most one icon copy exists at a time.
 func createIconAttachment(_ iconPath: String) -> UNNotificationAttachment? {
     let resolvedPath = (iconPath as NSString).expandingTildeInPath
     let sourceURL = URL(fileURLWithPath: resolvedPath)
     let tmpDir = FileManager.default.temporaryDirectory
-        .appendingPathComponent(UUID().uuidString)
+        .appendingPathComponent("sh.send.macnotifier")
     do {
         try FileManager.default.createDirectory(at: tmpDir, withIntermediateDirectories: true)
-        let tmpURL = tmpDir.appendingPathComponent(sourceURL.lastPathComponent)
+        // Clean up previous icon copies (best-effort; may fail if another process still needs one)
+        if let old = try? FileManager.default.contentsOfDirectory(at: tmpDir, includingPropertiesForKeys: nil) {
+            for file in old { try? FileManager.default.removeItem(at: file) }
+        }
+        let ext = sourceURL.pathExtension.isEmpty ? "" : ".\(sourceURL.pathExtension)"
+        let tmpURL = tmpDir.appendingPathComponent(UUID().uuidString + ext)
         try FileManager.default.copyItem(at: sourceURL, to: tmpURL)
-        let attachment = try UNNotificationAttachment(identifier: "icon", url: tmpURL, options: nil)
-        // The system moved the file out of tmpDir; clean up the empty directory.
-        try? FileManager.default.removeItem(at: tmpDir)
-        return attachment
+        return try UNNotificationAttachment(identifier: "icon", url: tmpURL, options: nil)
     } catch {
-        try? FileManager.default.removeItem(at: tmpDir)
         fputs("Warning: Failed to attach icon '\(iconPath)': \(error.localizedDescription)\n", stderr)
         return nil
     }
