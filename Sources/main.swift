@@ -54,18 +54,21 @@ class NotificationDelegate: NSObject, UNUserNotificationCenterDelegate {
 
 // UNNotificationAttachment moves the file into its data store,
 // so we must provide a temporary copy to avoid losing the original.
+// UNNotificationAttachment moves the file into its data store at an
+// indeterminate time, so the temp copy must outlive both init and center.add().
+// A fixed temp directory is reused so at most one icon copy exists at a time.
 func createIconAttachment(_ iconPath: String) -> UNNotificationAttachment? {
     let resolvedPath = (iconPath as NSString).expandingTildeInPath
     let sourceURL = URL(fileURLWithPath: resolvedPath)
     let tmpDir = FileManager.default.temporaryDirectory
-        .appendingPathComponent(UUID().uuidString)
+        .appendingPathComponent("sh.send.macnotifier")
     do {
         try FileManager.default.createDirectory(at: tmpDir, withIntermediateDirectories: true)
         let tmpURL = tmpDir.appendingPathComponent(sourceURL.lastPathComponent)
+        try? FileManager.default.removeItem(at: tmpURL)
         try FileManager.default.copyItem(at: sourceURL, to: tmpURL)
         return try UNNotificationAttachment(identifier: "icon", url: tmpURL, options: nil)
     } catch {
-        try? FileManager.default.removeItem(at: tmpDir)
         fputs("Warning: Failed to attach icon '\(iconPath)': \(error.localizedDescription)\n", stderr)
         return nil
     }
