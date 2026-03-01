@@ -43,7 +43,7 @@ class NotificationDelegate: NSObject, UNUserNotificationCenterDelegate {
         willPresent notification: UNNotification,
         withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void
     ) {
-        completionHandler([.list, .sound])
+        completionHandler([.banner, .list, .sound])
     }
 }
 
@@ -53,11 +53,13 @@ func sendNotification(title: String, message: String, execute: String?, activate
     center.requestAuthorization(options: [.alert, .sound]) { granted, error in
         if let error = error {
             fputs("Error requesting notification permission: \(error.localizedDescription)\n", stderr)
-            exit(1)
+            DispatchQueue.main.async { exit(1) }
+            return
         }
         guard granted else {
             fputs("Notification permission denied\n", stderr)
-            exit(1)
+            DispatchQueue.main.async { exit(1) }
+            return
         }
 
         let content = UNMutableNotificationContent()
@@ -79,7 +81,7 @@ func sendNotification(title: String, message: String, execute: String?, activate
         center.add(request) { error in
             if let error = error {
                 fputs("Error sending notification: \(error.localizedDescription)\n", stderr)
-                exit(1)
+                DispatchQueue.main.async { exit(1) }
             }
         }
     }
