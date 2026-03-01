@@ -31,8 +31,8 @@ Options:
   -m, --message <text>      通知メッセージ (必須)
   -a, --activate <bundleId> クリック時にアプリをアクティブ化
   -e, --execute <command>   クリック時にコマンドを実行
-  --icon <path>             カスタムアイコン (png)
-  --sound <name>            通知音 (default: "default")
+  --sound <name>            ~/Library/Sounds または /System/Library/Sounds のサウンド名 (e.g. "Glass")
+  --icon <path>             通知に添付する画像ファイルのパス
   -h, --help                ヘルプ表示
 ```
 

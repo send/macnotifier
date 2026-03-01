@@ -51,7 +51,7 @@ run_test_output() {
         return
     fi
 
-    if echo "$output" | grep -qi "$expected_pattern"; then
+    if echo "$output" | grep -qi -- "$expected_pattern"; then
         echo "PASS: $name"
         passed=$((passed + 1))
     else
@@ -71,6 +71,18 @@ run_test_output "unknown option exits 1" 1 "unknown" --unknown-flag
 
 # Test: -m without value exits 1
 run_test "-m without value exits 1" 1 -m
+
+# Test: --sound without value exits 1
+run_test "--sound without value exits 1" 1 -m "test" --sound
+
+# Test: --icon without value exits 1
+run_test "--icon without value exits 1" 1 -m "test" --icon
+
+# Test: -h shows --sound option
+run_test_output "-h shows --sound option" 0 "--sound" -h
+
+# Test: -h shows --icon option
+run_test_output "-h shows --icon option" 0 "--icon" -h
 
 echo ""
 echo "Results: $passed passed, $failed failed"
