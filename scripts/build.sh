@@ -32,6 +32,8 @@ cat > "$APP_BUNDLE/Contents/Info.plist" <<PLIST
     <string>1.0</string>
     <key>CFBundlePackageType</key>
     <string>APPL</string>
+    <key>CFBundleIconFile</key>
+    <string>AppIcon</string>
     <key>LSUIElement</key>
     <true/>
 </dict>

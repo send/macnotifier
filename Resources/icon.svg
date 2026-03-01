@@ -1,0 +1,13 @@
+<svg width="1024" height="1024" viewBox="0 0 1024 1024" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Background -->
+  <rect width="1024" height="1024" rx="224" fill="#2d2d2d"/>
+
+  <!-- Speech bubble — Golden ratio grid: B=8, R=64 -->
+  <!-- Bubble body: w=84B=672, h=52B=416, ratio 84:52=21:13≈φ -->
+  <!-- Top margin: 34B=272 (Fibonacci), horizontally centered -->
+  <!-- Tail: base=12B=96, height=15B=120 -->
+  <g fill="#c8beb4">
+    <rect x="176" y="272" width="672" height="416" rx="64"/>
+    <polygon points="552,688 648,688 600,808"/>
+  </g>
+</svg>
