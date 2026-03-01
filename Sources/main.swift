@@ -47,7 +47,14 @@ class NotificationDelegate: NSObject, UNUserNotificationCenterDelegate {
     }
 }
 
-func sendNotification(title: String, message: String, execute: String?, activate: String?) {
+func sendNotification(
+    title: String,
+    message: String,
+    execute: String?,
+    activate: String?,
+    sound: String?,
+    icon: String?
+) {
     let center = UNUserNotificationCenter.current()
 
     center.requestAuthorization(options: [.alert, .sound]) { granted, error in
@@ -65,7 +72,25 @@ func sendNotification(title: String, message: String, execute: String?, activate
         let content = UNMutableNotificationContent()
         content.title = title
         content.body = message
-        content.sound = .default
+
+        if let soundName = sound {
+            content.sound = UNNotificationSound(named: UNNotificationSoundName(rawValue: soundName))
+        } else {
+            content.sound = .default
+        }
+
+        if let iconPath = icon {
+            let fileURL = URL(fileURLWithPath: iconPath)
+            if let attachment = try? UNNotificationAttachment(
+                identifier: "icon",
+                url: fileURL,
+                options: nil
+            ) {
+                content.attachments = [attachment]
+            } else {
+                fputs("Warning: Failed to attach icon '\(iconPath)'\n", stderr)
+            }
+        }
 
         var info: [String: String] = [:]
         if let execute = execute { info["execute"] = execute }
@@ -96,6 +121,8 @@ func printUsage() {
       -m, --message <message>  Notification message (required)
       -e, --execute <command>  Shell command to execute on click
       -a, --activate <id>      Bundle ID of app to activate on click
+          --sound <name>       Custom notification sound name (e.g. "Glass", "Ping")
+          --icon <path>        Path to image file to attach as icon
       -h, --help               Show this help message
     """)
 }
@@ -105,6 +132,8 @@ var title = "macnotifier"
 var message: String?
 var execute: String?
 var activate: String?
+var sound: String?
+var icon: String?
 
 var i = 1
 let args = CommandLine.arguments
@@ -138,6 +167,20 @@ while i < args.count {
             exit(1)
         }
         activate = args[i]
+    case "--sound":
+        i += 1
+        guard i < args.count else {
+            fputs("Error: --sound requires a value\n", stderr)
+            exit(1)
+        }
+        sound = args[i]
+    case "--icon":
+        i += 1
+        guard i < args.count else {
+            fputs("Error: --icon requires a value\n", stderr)
+            exit(1)
+        }
+        icon = args[i]
     case "-h", "--help":
         printUsage()
         exit(0)
@@ -162,7 +205,7 @@ app.setActivationPolicy(.accessory)
 let delegate = NotificationDelegate()
 UNUserNotificationCenter.current().delegate = delegate
 
-sendNotification(title: title, message: message, execute: execute, activate: activate)
+sendNotification(title: title, message: message, execute: execute, activate: activate, sound: sound, icon: icon)
 
 // Terminate after timeout; use a shorter timeout when no click action is registered
 let hasAction = execute != nil || activate != nil
