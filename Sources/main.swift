@@ -7,6 +7,25 @@ class NotificationDelegate: NSObject, UNUserNotificationCenterDelegate {
         didReceive response: UNNotificationResponse,
         withCompletionHandler completionHandler: @escaping () -> Void
     ) {
+        let userInfo = response.notification.request.content.userInfo
+
+        // Execute shell command
+        if let command = userInfo["execute"] as? String {
+            let task = Process()
+            task.executableURL = URL(fileURLWithPath: "/bin/sh")
+            task.arguments = ["-c", command]
+            try? task.run()
+        }
+
+        // Activate application by bundle identifier
+        if let bundleId = userInfo["activate"] as? String {
+            if let url = NSWorkspace.shared.urlForApplication(
+                withBundleIdentifier: bundleId
+            ) {
+                NSWorkspace.shared.open(url)
+            }
+        }
+
         completionHandler()
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
             NSApplication.shared.terminate(nil)
@@ -22,7 +41,7 @@ class NotificationDelegate: NSObject, UNUserNotificationCenterDelegate {
     }
 }
 
-func sendNotification(title: String, message: String) {
+func sendNotification(title: String, message: String, execute: String?, activate: String?) {
     let center = UNUserNotificationCenter.current()
 
     center.requestAuthorization(options: [.alert, .sound]) { granted, error in
@@ -39,6 +58,11 @@ func sendNotification(title: String, message: String) {
         content.title = title
         content.body = message
         content.sound = .default
+
+        var info: [String: String] = [:]
+        if let execute = execute { info["execute"] = execute }
+        if let activate = activate { info["activate"] = activate }
+        content.userInfo = info
 
         let request = UNNotificationRequest(
             identifier: UUID().uuidString,
@@ -62,6 +86,8 @@ func printUsage() {
     Options:
       -t, --title <title>      Notification title (default: "macnotifier")
       -m, --message <message>  Notification message (required)
+      -e, --execute <command>  Shell command to execute on click
+      -a, --activate <id>      Bundle ID of app to activate on click
       -h, --help               Show this help message
     """)
 }
@@ -69,6 +95,8 @@ func printUsage() {
 // Parse arguments
 var title = "macnotifier"
 var message: String?
+var execute: String?
+var activate: String?
 
 var i = 1
 let args = CommandLine.arguments
@@ -88,6 +116,20 @@ while i < args.count {
             exit(1)
         }
         message = args[i]
+    case "-e", "--execute":
+        i += 1
+        guard i < args.count else {
+            fputs("Error: -e requires a value\n", stderr)
+            exit(1)
+        }
+        execute = args[i]
+    case "-a", "--activate":
+        i += 1
+        guard i < args.count else {
+            fputs("Error: -a requires a value\n", stderr)
+            exit(1)
+        }
+        activate = args[i]
     case "-h", "--help":
         printUsage()
         exit(0)
@@ -112,11 +154,14 @@ app.setActivationPolicy(.accessory)
 let delegate = NotificationDelegate()
 UNUserNotificationCenter.current().delegate = delegate
 
-sendNotification(title: title, message: message)
+sendNotification(title: title, message: message, execute: execute, activate: activate)
 
-// Terminate after timeout if notification is not clicked
-DispatchQueue.main.asyncAfter(deadline: .now() + 5.0) {
-    NSApplication.shared.terminate(nil)
+// Terminate after timeout if no click action is registered
+let hasAction = execute != nil || activate != nil
+if !hasAction {
+    DispatchQueue.main.asyncAfter(deadline: .now() + 5.0) {
+        NSApplication.shared.terminate(nil)
+    }
 }
 
 app.run()
