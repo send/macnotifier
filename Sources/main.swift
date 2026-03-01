@@ -47,14 +47,16 @@ class NotificationDelegate: NSObject, UNUserNotificationCenterDelegate {
     }
 }
 
-func sendNotification(
-    title: String,
-    message: String,
-    execute: String?,
-    activate: String?,
-    sound: String?,
-    icon: String?
-) {
+struct NotificationParams {
+    var title: String = "macnotifier"
+    var message: String = ""
+    var execute: String?
+    var activate: String?
+    var sound: String?
+    var icon: String?
+}
+
+func sendNotification(_ params: NotificationParams) {
     let center = UNUserNotificationCenter.current()
 
     center.requestAuthorization(options: [.alert, .sound]) { granted, error in
@@ -70,16 +72,16 @@ func sendNotification(
         }
 
         let content = UNMutableNotificationContent()
-        content.title = title
-        content.body = message
+        content.title = params.title
+        content.body = params.message
 
-        if let soundName = sound {
+        if let soundName = params.sound {
             content.sound = UNNotificationSound(named: UNNotificationSoundName(rawValue: soundName))
         } else {
             content.sound = .default
         }
 
-        if let iconPath = icon {
+        if let iconPath = params.icon {
             let fileURL = URL(fileURLWithPath: iconPath)
             if let attachment = try? UNNotificationAttachment(
                 identifier: "icon",
@@ -93,8 +95,8 @@ func sendNotification(
         }
 
         var info: [String: String] = [:]
-        if let execute = execute { info["execute"] = execute }
-        if let activate = activate { info["activate"] = activate }
+        if let cmd = params.execute { info["execute"] = cmd }
+        if let bundleId = params.activate { info["activate"] = bundleId }
         content.userInfo = info
 
         let request = UNNotificationRequest(
@@ -128,12 +130,8 @@ func printUsage() {
 }
 
 // Parse arguments
-var title = "macnotifier"
+var params = NotificationParams()
 var message: String?
-var execute: String?
-var activate: String?
-var sound: String?
-var icon: String?
 
 var i = 1
 let args = CommandLine.arguments
@@ -145,7 +143,7 @@ while i < args.count {
             fputs("Error: -t requires a value\n", stderr)
             exit(1)
         }
-        title = args[i]
+        params.title = args[i]
     case "-m", "--message":
         i += 1
         guard i < args.count else {
@@ -159,28 +157,28 @@ while i < args.count {
             fputs("Error: -e requires a value\n", stderr)
             exit(1)
         }
-        execute = args[i]
+        params.execute = args[i]
     case "-a", "--activate":
         i += 1
         guard i < args.count else {
             fputs("Error: -a requires a value\n", stderr)
             exit(1)
         }
-        activate = args[i]
+        params.activate = args[i]
     case "--sound":
         i += 1
         guard i < args.count else {
             fputs("Error: --sound requires a value\n", stderr)
             exit(1)
         }
-        sound = args[i]
+        params.sound = args[i]
     case "--icon":
         i += 1
         guard i < args.count else {
             fputs("Error: --icon requires a value\n", stderr)
             exit(1)
         }
-        icon = args[i]
+        params.icon = args[i]
     case "-h", "--help":
         printUsage()
         exit(0)
@@ -197,6 +195,7 @@ guard let message = message else {
     printUsage()
     exit(1)
 }
+params.message = message
 
 // Launch application
 let app = NSApplication.shared
@@ -205,10 +204,10 @@ app.setActivationPolicy(.accessory)
 let delegate = NotificationDelegate()
 UNUserNotificationCenter.current().delegate = delegate
 
-sendNotification(title: title, message: message, execute: execute, activate: activate, sound: sound, icon: icon)
+sendNotification(params)
 
 // Terminate after timeout; use a shorter timeout when no click action is registered
-let hasAction = execute != nil || activate != nil
+let hasAction = params.execute != nil || params.activate != nil
 let timeout: TimeInterval = hasAction ? 60.0 : 5.0
 DispatchQueue.main.asyncAfter(deadline: .now() + timeout) {
     NSApplication.shared.terminate(nil)
