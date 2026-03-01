@@ -20,20 +20,39 @@ for arg in "$@"; do
         -h|--help)
             cat <<'USAGE'
 Usage: macnotifier [options]
+       command | macnotifier [options]
 
 Options:
   -t, --title <title>      Notification title (default: "macnotifier")
-  -m, --message <message>  Notification message (required)
+  -m, --message <message>  Notification message (required, or pass via stdin)
   -e, --execute <command>  Shell command to execute on click
   -a, --activate <id>      Bundle ID of app to activate on click
       --sound <name>       Sound name in ~/Library/Sounds or /System/Library/Sounds (e.g. "Glass")
       --icon <path>        Path to image file to attach as icon
   -h, --help               Show this help message
+
+If -m is omitted and stdin is a pipe, the message is read from stdin.
 USAGE
             exit 0
             ;;
     esac
 done
+
+# If -m is not provided and stdin is a pipe, read message from stdin.
+has_m_flag=false
+for arg in "$@"; do
+    case "$arg" in
+        -m|--message) has_m_flag=true ;;
+    esac
+done
+
+if [ "$has_m_flag" = false ] && [ ! -t 0 ]; then
+    stdin_message="$(cat)"
+    if [ -n "$stdin_message" ]; then
+        set -- "$@" -m "$stdin_message"
+        has_m_flag=true
+    fi
+fi
 
 # Validate -m is present with a value before launching the app.
 has_message=false

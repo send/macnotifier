@@ -130,6 +130,32 @@ else
     # Test: wrapper -m without value shows error
     run_wrapper_test "wrapper -m without value exits 1" 1 "requires" -m
 
+    # Test: stdin pipe provides message when -m is omitted
+    set +e
+    stdin_output=$(echo "hello" | "$WRAPPER" 2>&1)
+    stdin_exit=$?
+    set -e
+    if [ "$stdin_exit" -eq 0 ]; then
+        echo "PASS: wrapper reads message from stdin"
+        passed=$((passed + 1))
+    else
+        echo "FAIL: wrapper stdin (exit $stdin_exit, output: $stdin_output)"
+        failed=$((failed + 1))
+    fi
+
+    # Test: empty stdin without -m still errors
+    set +e
+    empty_stdin_output=$(echo -n "" | "$WRAPPER" 2>&1)
+    empty_stdin_exit=$?
+    set -e
+    if [ "$empty_stdin_exit" -eq 1 ] && echo "$empty_stdin_output" | grep -qi "required"; then
+        echo "PASS: wrapper empty stdin without -m exits 1"
+        passed=$((passed + 1))
+    else
+        echo "FAIL: wrapper empty stdin (exit $empty_stdin_exit)"
+        failed=$((failed + 1))
+    fi
+
     # Test: wrapper works via symlink
     SYMLINK_DIR="$(mktemp -d)"
     ln -s "$WRAPPER" "$SYMLINK_DIR/macnotifier"
