@@ -126,6 +126,25 @@ else
 
     # Test: wrapper without -m shows error
     run_wrapper_test "wrapper missing -m exits 1" 1 "required"
+
+    # Test: wrapper -m without value shows error
+    run_wrapper_test "wrapper -m without value exits 1" 1 "requires" -m
+
+    # Test: wrapper works via symlink
+    SYMLINK_DIR="$(mktemp -d)"
+    ln -s "$WRAPPER" "$SYMLINK_DIR/macnotifier"
+    set +e
+    symlink_output=$("$SYMLINK_DIR/macnotifier" -h 2>&1)
+    symlink_exit=$?
+    set -e
+    rm -rf "$SYMLINK_DIR"
+    if [ "$symlink_exit" -eq 0 ] && echo "$symlink_output" | grep -qi "Usage"; then
+        echo "PASS: wrapper works via symlink"
+        passed=$((passed + 1))
+    else
+        echo "FAIL: wrapper via symlink (exit $symlink_exit)"
+        failed=$((failed + 1))
+    fi
 fi
 
 echo ""

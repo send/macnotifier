@@ -1,7 +1,16 @@
 #!/bin/bash
 set -euo pipefail
 
-SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+# Resolve symlinks so the script works when invoked via symlink (e.g. Homebrew).
+SELF="$0"
+if [ -L "$SELF" ]; then
+    TARGET="$(readlink "$SELF")"
+    case "$TARGET" in
+        /*) SELF="$TARGET" ;;
+        *)  SELF="$(dirname "$SELF")/$TARGET" ;;
+    esac
+fi
+SCRIPT_DIR="$(cd "$(dirname "$SELF")" && pwd)"
 APP_BUNDLE="$(cd "$SCRIPT_DIR/.." && pwd)/macnotifier.app"
 
 # Handle -h/--help directly so output is visible in the terminal.
@@ -26,13 +35,23 @@ USAGE
     esac
 done
 
-# Validate -m is present before launching the app.
+# Validate -m is present with a value before launching the app.
 has_message=false
+expect_value=false
 for arg in "$@"; do
+    if [ "$expect_value" = true ]; then
+        has_message=true
+        break
+    fi
     case "$arg" in
-        -m|--message) has_message=true; break ;;
+        -m|--message) expect_value=true ;;
     esac
 done
+
+if [ "$expect_value" = true ] && [ "$has_message" = false ]; then
+    echo "Error: -m requires a value" >&2
+    exit 1
+fi
 
 if [ "$has_message" = false ]; then
     echo "Error: -m (message) is required" >&2
