@@ -8,6 +8,11 @@ outputs = ["macnotifier.app/Contents/MacOS/macnotifier"]
 description = "Remove build artifacts"
 run = "rm -rf macnotifier.app"
 
+[tasks.test]
+description = "Run tests"
+depends = ["build"]
+run = "./scripts/test.sh"
+
 [tasks.notify]
 description = "Send a test notification"
 depends = ["build"]
