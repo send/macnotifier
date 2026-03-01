@@ -23,7 +23,11 @@ class NotificationDelegate: NSObject, UNUserNotificationCenterDelegate {
 
         // Activate application by bundle identifier
         if let bundleId = userInfo["activate"] as? String {
-            if let url = NSWorkspace.shared.urlForApplication(
+            if let app = NSRunningApplication.runningApplications(
+                withBundleIdentifier: bundleId
+            ).first {
+                app.activate()
+            } else if let url = NSWorkspace.shared.urlForApplication(
                 withBundleIdentifier: bundleId
             ) {
                 NSWorkspace.shared.open(url)
@@ -83,11 +87,18 @@ func sendNotification(_ params: NotificationParams) {
 
         if let iconPath = params.icon {
             let resolvedIconPath = (iconPath as NSString).expandingTildeInPath
-            let fileURL = URL(fileURLWithPath: resolvedIconPath)
+            let sourceURL = URL(fileURLWithPath: resolvedIconPath)
+            // UNNotificationAttachment moves the file into its data store,
+            // so we must provide a temporary copy to avoid losing the original.
+            let tmpDir = FileManager.default.temporaryDirectory
+                .appendingPathComponent(UUID().uuidString)
             do {
+                try FileManager.default.createDirectory(at: tmpDir, withIntermediateDirectories: true)
+                let tmpURL = tmpDir.appendingPathComponent(sourceURL.lastPathComponent)
+                try FileManager.default.copyItem(at: sourceURL, to: tmpURL)
                 let attachment = try UNNotificationAttachment(
                     identifier: "icon",
-                    url: fileURL,
+                    url: tmpURL,
                     options: nil
                 )
                 content.attachments = [attachment]
