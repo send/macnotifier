@@ -82,7 +82,8 @@ func sendNotification(_ params: NotificationParams) {
         }
 
         if let iconPath = params.icon {
-            let fileURL = URL(fileURLWithPath: iconPath)
+            let resolvedIconPath = (iconPath as NSString).expandingTildeInPath
+            let fileURL = URL(fileURLWithPath: resolvedIconPath)
             do {
                 let attachment = try UNNotificationAttachment(
                     identifier: "icon",
@@ -124,7 +125,7 @@ func printUsage() {
       -m, --message <message>  Notification message (required)
       -e, --execute <command>  Shell command to execute on click
       -a, --activate <id>      Bundle ID of app to activate on click
-          --sound <file>       Sound file name in ~/Library/Sounds or /System/Library/Sounds
+          --sound <name>       Sound name in ~/Library/Sounds or /System/Library/Sounds (e.g. "Glass")
           --icon <path>        Path to image file to attach as icon
       -h, --help               Show this help message
     """)
