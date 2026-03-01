@@ -21,18 +21,20 @@ class NotificationDelegate: NSObject, UNUserNotificationCenterDelegate {
             }
         }
 
-        // Activate application by bundle identifier
+        // Activate application by bundle identifier (must run on main thread for AppKit)
         if let bundleId = userInfo["activate"] as? String {
-            if let app = NSRunningApplication.runningApplications(
-                withBundleIdentifier: bundleId
-            ).first {
-                app.activate()
-            } else if let url = NSWorkspace.shared.urlForApplication(
-                withBundleIdentifier: bundleId
-            ) {
-                NSWorkspace.shared.open(url)
-            } else {
-                fputs("Warning: No application found for bundle identifier \(bundleId)\n", stderr)
+            DispatchQueue.main.async {
+                if let app = NSRunningApplication.runningApplications(
+                    withBundleIdentifier: bundleId
+                ).first {
+                    app.activate()
+                } else if let url = NSWorkspace.shared.urlForApplication(
+                    withBundleIdentifier: bundleId
+                ) {
+                    NSWorkspace.shared.open(url)
+                } else {
+                    fputs("Warning: No application found for bundle identifier \(bundleId)\n", stderr)
+                }
             }
         }
 
