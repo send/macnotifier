@@ -64,8 +64,12 @@ func createIconAttachment(_ iconPath: String) -> UNNotificationAttachment? {
         try FileManager.default.createDirectory(at: tmpDir, withIntermediateDirectories: true)
         let tmpURL = tmpDir.appendingPathComponent(sourceURL.lastPathComponent)
         try FileManager.default.copyItem(at: sourceURL, to: tmpURL)
-        return try UNNotificationAttachment(identifier: "icon", url: tmpURL, options: nil)
+        let attachment = try UNNotificationAttachment(identifier: "icon", url: tmpURL, options: nil)
+        // The system moved the file out of tmpDir; clean up the empty directory.
+        try? FileManager.default.removeItem(at: tmpDir)
+        return attachment
     } catch {
+        try? FileManager.default.removeItem(at: tmpDir)
         fputs("Warning: Failed to attach icon '\(iconPath)': \(error.localizedDescription)\n", stderr)
         return nil
     }
