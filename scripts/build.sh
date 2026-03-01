@@ -34,8 +34,6 @@ cat > "$APP_BUNDLE/Contents/Info.plist" <<PLIST
     <string>APPL</string>
     <key>LSUIElement</key>
     <true/>
-    <key>NSUserNotificationAlertStyle</key>
-    <string>alert</string>
 </dict>
 </plist>
 PLIST
@@ -49,6 +47,8 @@ swiftc \
 # Copy icon if present
 if [ -f "$PROJECT_DIR/Resources/AppIcon.icns" ]; then
     cp "$PROJECT_DIR/Resources/AppIcon.icns" "$APP_BUNDLE/Contents/Resources/"
+elif [ -f "$PROJECT_DIR/Resources/macnotifier.icns" ]; then
+    cp "$PROJECT_DIR/Resources/macnotifier.icns" "$APP_BUNDLE/Contents/Resources/"
 fi
 
 # Ad-hoc code signing

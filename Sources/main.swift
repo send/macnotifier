@@ -14,7 +14,11 @@ class NotificationDelegate: NSObject, UNUserNotificationCenterDelegate {
             let task = Process()
             task.executableURL = URL(fileURLWithPath: "/bin/sh")
             task.arguments = ["-c", command]
-            try? task.run()
+            do {
+                try task.run()
+            } catch {
+                fputs("Failed to execute shell command '\(command)': \(error.localizedDescription)\n", stderr)
+            }
         }
 
         // Activate application by bundle identifier
@@ -23,6 +27,8 @@ class NotificationDelegate: NSObject, UNUserNotificationCenterDelegate {
                 withBundleIdentifier: bundleId
             ) {
                 NSWorkspace.shared.open(url)
+            } else {
+                fputs("Warning: No application found for bundle identifier \(bundleId)\n", stderr)
             }
         }
 
@@ -37,7 +43,7 @@ class NotificationDelegate: NSObject, UNUserNotificationCenterDelegate {
         willPresent notification: UNNotification,
         withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void
     ) {
-        completionHandler([.banner, .sound])
+        completionHandler([.list, .sound])
     }
 }
 
@@ -156,12 +162,11 @@ UNUserNotificationCenter.current().delegate = delegate
 
 sendNotification(title: title, message: message, execute: execute, activate: activate)
 
-// Terminate after timeout if no click action is registered
+// Terminate after timeout; use a shorter timeout when no click action is registered
 let hasAction = execute != nil || activate != nil
-if !hasAction {
-    DispatchQueue.main.asyncAfter(deadline: .now() + 5.0) {
-        NSApplication.shared.terminate(nil)
-    }
+let timeout: TimeInterval = hasAction ? 60.0 : 5.0
+DispatchQueue.main.asyncAfter(deadline: .now() + timeout) {
+    NSApplication.shared.terminate(nil)
 }
 
 app.run()
