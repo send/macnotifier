@@ -26,8 +26,8 @@ class NotificationDelegate: NSObject, UNUserNotificationCenterDelegate {
             DispatchQueue.main.async {
                 if let app = NSRunningApplication.runningApplications(
                     withBundleIdentifier: bundleId
-                ).first {
-                    app.activate()
+                ).first, app.activate() {
+                    // activated
                 } else if let url = NSWorkspace.shared.urlForApplication(
                     withBundleIdentifier: bundleId
                 ) {
