@@ -21,14 +21,20 @@ class NotificationDelegate: NSObject, UNUserNotificationCenterDelegate {
             }
         }
 
-        // Activate application by bundle identifier
+        // Activate application by bundle identifier (must run on main thread for AppKit)
         if let bundleId = userInfo["activate"] as? String {
-            if let url = NSWorkspace.shared.urlForApplication(
-                withBundleIdentifier: bundleId
-            ) {
-                NSWorkspace.shared.open(url)
-            } else {
-                fputs("Warning: No application found for bundle identifier \(bundleId)\n", stderr)
+            DispatchQueue.main.async {
+                if let app = NSRunningApplication.runningApplications(
+                    withBundleIdentifier: bundleId
+                ).first, app.activate() {
+                    // activated
+                } else if let url = NSWorkspace.shared.urlForApplication(
+                    withBundleIdentifier: bundleId
+                ) {
+                    NSWorkspace.shared.open(url)
+                } else {
+                    fputs("Warning: No application found for bundle identifier \(bundleId)\n", stderr)
+                }
             }
         }
 
@@ -44,6 +50,28 @@ class NotificationDelegate: NSObject, UNUserNotificationCenterDelegate {
         withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void
     ) {
         completionHandler([.banner, .list, .sound])
+    }
+}
+
+// UNNotificationAttachment moves the file into its data store,
+// so we must provide a temporary copy to avoid losing the original.
+func createIconAttachment(_ iconPath: String) -> UNNotificationAttachment? {
+    let resolvedPath = (iconPath as NSString).expandingTildeInPath
+    let sourceURL = URL(fileURLWithPath: resolvedPath)
+    let tmpDir = FileManager.default.temporaryDirectory
+        .appendingPathComponent(UUID().uuidString)
+    do {
+        try FileManager.default.createDirectory(at: tmpDir, withIntermediateDirectories: true)
+        let tmpURL = tmpDir.appendingPathComponent(sourceURL.lastPathComponent)
+        try FileManager.default.copyItem(at: sourceURL, to: tmpURL)
+        let attachment = try UNNotificationAttachment(identifier: "icon", url: tmpURL, options: nil)
+        // The system moved the file out of tmpDir; clean up the empty directory.
+        try? FileManager.default.removeItem(at: tmpDir)
+        return attachment
+    } catch {
+        try? FileManager.default.removeItem(at: tmpDir)
+        fputs("Warning: Failed to attach icon '\(iconPath)': \(error.localizedDescription)\n", stderr)
+        return nil
     }
 }
 
@@ -82,17 +110,8 @@ func sendNotification(_ params: NotificationParams) {
         }
 
         if let iconPath = params.icon {
-            let resolvedIconPath = (iconPath as NSString).expandingTildeInPath
-            let fileURL = URL(fileURLWithPath: resolvedIconPath)
-            do {
-                let attachment = try UNNotificationAttachment(
-                    identifier: "icon",
-                    url: fileURL,
-                    options: nil
-                )
+            if let attachment = createIconAttachment(iconPath) {
                 content.attachments = [attachment]
-            } catch {
-                fputs("Warning: Failed to attach icon '\(iconPath)': \(error.localizedDescription)\n", stderr)
             }
         }
 
