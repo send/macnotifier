@@ -1,0 +1,19 @@
+[tasks.build]
+description = "Build macnotifier.app bundle"
+run = "./scripts/build.sh"
+sources = ["Sources/**/*.swift", "scripts/build.sh"]
+outputs = ["macnotifier.app/Contents/MacOS/macnotifier"]
+
+[tasks.clean]
+description = "Remove build artifacts"
+run = "rm -rf macnotifier.app"
+
+[tasks.test]
+description = "Run tests"
+depends = ["build"]
+run = "./scripts/test.sh"
+
+[tasks.notify]
+description = "Send a test notification"
+depends = ["build"]
+run = "open -n macnotifier.app --args -m 'Hello from macnotifier'"

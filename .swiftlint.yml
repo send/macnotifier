@@ -1,0 +1,10 @@
+included:
+  - Sources
+
+disabled_rules:
+  - trailing_whitespace
+  - identifier_name
+
+line_length:
+  warning: 120
+  error: 200
