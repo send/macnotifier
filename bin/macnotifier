@@ -1,0 +1,65 @@
+#!/bin/bash
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+APP_BUNDLE="$(cd "$SCRIPT_DIR/.." && pwd)/macnotifier.app"
+
+# Handle -h/--help directly so output is visible in the terminal.
+# open -n does not connect the app's stdout/stderr to the terminal.
+for arg in "$@"; do
+    case "$arg" in
+        -h|--help)
+            cat <<'USAGE'
+Usage: macnotifier [options]
+
+Options:
+  -t, --title <title>      Notification title (default: "macnotifier")
+  -m, --message <message>  Notification message (required)
+  -e, --execute <command>  Shell command to execute on click
+  -a, --activate <id>      Bundle ID of app to activate on click
+      --sound <name>       Sound name in ~/Library/Sounds or /System/Library/Sounds (e.g. "Glass")
+      --icon <path>        Path to image file to attach as icon
+  -h, --help               Show this help message
+USAGE
+            exit 0
+            ;;
+    esac
+done
+
+# Validate -m is present before launching the app.
+has_message=false
+for arg in "$@"; do
+    case "$arg" in
+        -m|--message) has_message=true; break ;;
+    esac
+done
+
+if [ "$has_message" = false ]; then
+    echo "Error: -m (message) is required" >&2
+    exit 1
+fi
+
+if [ ! -d "$APP_BUNDLE" ]; then
+    echo "Error: $APP_BUNDLE not found (run scripts/build.sh first)" >&2
+    exit 1
+fi
+
+# Convert --icon relative paths to absolute paths.
+# open -n changes the working directory, so relative paths would break.
+args=()
+while [ $# -gt 0 ]; do
+    if [ "$1" = "--icon" ] && [ $# -ge 2 ]; then
+        args+=("$1")
+        shift
+        case "$1" in
+            /*) args+=("$1") ;;              # absolute path: pass through
+            ~*) args+=("$1") ;;              # tilde path: Swift expands it
+            *)  args+=("$PWD/$1") ;;         # relative path: convert to absolute
+        esac
+    else
+        args+=("$1")
+    fi
+    shift
+done
+
+open -n "$APP_BUNDLE" --args "${args[@]}"
