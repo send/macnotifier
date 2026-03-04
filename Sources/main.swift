@@ -10,7 +10,8 @@ class NotificationDelegate: NSObject, UNUserNotificationCenterDelegate {
         didReceive response: UNNotificationResponse,
         withCompletionHandler completionHandler: @escaping () -> Void
     ) {
-        terminationWork?.cancel()
+        // Cancel on main thread to avoid data race with the global variable.
+        DispatchQueue.main.async { terminationWork?.cancel() }
 
         let userInfo = response.notification.request.content.userInfo
         // Execute shell command
