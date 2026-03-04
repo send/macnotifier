@@ -1,12 +1,17 @@
 import Cocoa
 import UserNotifications
 
+// Cancelable termination timer; didReceive cancels it to avoid racing.
+var terminationWork: DispatchWorkItem?
+
 class NotificationDelegate: NSObject, UNUserNotificationCenterDelegate {
     func userNotificationCenter(
         _ center: UNUserNotificationCenter,
         didReceive response: UNNotificationResponse,
         withCompletionHandler completionHandler: @escaping () -> Void
     ) {
+        terminationWork?.cancel()
+
         let userInfo = response.notification.request.content.userInfo
         // Execute shell command
         if let command = userInfo["execute"] as? String {
@@ -159,14 +164,15 @@ func printUsage() {
 // Parse arguments
 var params = NotificationParams()
 var message: String?
-var hasUserFlags = false
+
+// Determine if any user-facing flags were passed (ignoring -psn_* from LaunchServices).
+let hasUserFlags = CommandLine.arguments.dropFirst().contains { !$0.hasPrefix("-psn_") }
 
 var i = 1
 let args = CommandLine.arguments
 while i < args.count {
     switch args[i] {
     case "-t", "--title":
-        hasUserFlags = true
         i += 1
         guard i < args.count else {
             fputs("Error: -t requires a value\n", stderr)
@@ -174,7 +180,6 @@ while i < args.count {
         }
         params.title = args[i]
     case "-m", "--message":
-        hasUserFlags = true
         i += 1
         guard i < args.count else {
             fputs("Error: -m requires a value\n", stderr)
@@ -182,7 +187,6 @@ while i < args.count {
         }
         message = args[i]
     case "-e", "--execute":
-        hasUserFlags = true
         i += 1
         guard i < args.count else {
             fputs("Error: -e requires a value\n", stderr)
@@ -190,7 +194,6 @@ while i < args.count {
         }
         params.execute = args[i]
     case "-a", "--activate":
-        hasUserFlags = true
         i += 1
         guard i < args.count else {
             fputs("Error: -a requires a value\n", stderr)
@@ -198,7 +201,6 @@ while i < args.count {
         }
         params.activate = args[i]
     case "--sound":
-        hasUserFlags = true
         i += 1
         guard i < args.count else {
             fputs("Error: --sound requires a value\n", stderr)
@@ -206,7 +208,6 @@ while i < args.count {
         }
         params.sound = args[i]
     case "--icon":
-        hasUserFlags = true
         i += 1
         guard i < args.count else {
             fputs("Error: --icon requires a value\n", stderr)
@@ -242,15 +243,14 @@ if let message = message {
     // Terminate after timeout; use a shorter timeout when no click action is registered
     let hasAction = params.execute != nil || params.activate != nil
     let timeout: TimeInterval = hasAction ? 60.0 : 5.0
-    DispatchQueue.main.asyncAfter(deadline: .now() + timeout) {
-        NSApplication.shared.terminate(nil)
-    }
+    terminationWork = DispatchWorkItem { NSApplication.shared.terminate(nil) }
+    DispatchQueue.main.asyncAfter(deadline: .now() + timeout, execute: terminationWork!)
 } else if !hasUserFlags {
     // Launched by macOS for a notification click (no user flags, possibly only -psn_*).
     // Run briefly to let didReceive handle the pending click, then exit.
-    DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
-        NSApplication.shared.terminate(nil)
-    }
+    // didReceive cancels this timer to avoid racing.
+    terminationWork = DispatchWorkItem { NSApplication.shared.terminate(nil) }
+    DispatchQueue.main.asyncAfter(deadline: .now() + 2.0, execute: terminationWork!)
 } else {
     fputs("Error: -m (message) is required\n", stderr)
     printUsage()
