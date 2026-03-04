@@ -10,8 +10,10 @@ class NotificationDelegate: NSObject, UNUserNotificationCenterDelegate {
         didReceive response: UNNotificationResponse,
         withCompletionHandler completionHandler: @escaping () -> Void
     ) {
-        // Cancel on main thread to avoid data race with the global variable.
-        DispatchQueue.main.async { terminationWork?.cancel() }
+        // Cancel the termination timer so the app stays alive for click handling.
+        // cancel() is thread-safe; the variable is written once before app.run()
+        // and only read here, so no synchronization is needed.
+        terminationWork?.cancel()
 
         let userInfo = response.notification.request.content.userInfo
         // Execute shell command
