@@ -63,8 +63,12 @@ run_test_output() {
 # Test: -h shows usage and exits 0
 run_test_output "-h shows help and exits 0" 0 "Usage" -h
 
-# Test: missing -m exits 1
-run_test_output "missing -m exits 1" 1 "required"
+# Test: no arguments enters notification-click handler mode (exits 0)
+# When macOS relaunches the app for a stale notification click, no args are passed.
+run_test "no arguments exits 0 (notification click handler)" 0
+
+# Test: has flags but missing -m exits 1
+run_test_output "flags without -m exits 1" 1 "required" -t "Title"
 
 # Test: unknown option exits 1
 run_test_output "unknown option exits 1" 1 "unknown" --unknown-flag

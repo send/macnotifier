@@ -214,27 +214,35 @@ while i < args.count {
     i += 1
 }
 
-guard let message = message else {
-    fputs("Error: -m (message) is required\n", stderr)
-    printUsage()
-    exit(1)
-}
-params.message = message
-
-// Launch application
+// Launch application and register delegate BEFORE validating -m.
+// When macOS relaunches the app for a stale notification click, no arguments
+// are passed. The delegate must be ready so didReceive can handle the click.
 let app = NSApplication.shared
 app.setActivationPolicy(.accessory)
 
 let delegate = NotificationDelegate()
 UNUserNotificationCenter.current().delegate = delegate
 
-sendNotification(params)
+if let message = message {
+    params.message = message
+    sendNotification(params)
 
-// Terminate after timeout; use a shorter timeout when no click action is registered
-let hasAction = params.execute != nil || params.activate != nil
-let timeout: TimeInterval = hasAction ? 60.0 : 5.0
-DispatchQueue.main.asyncAfter(deadline: .now() + timeout) {
-    NSApplication.shared.terminate(nil)
+    // Terminate after timeout; use a shorter timeout when no click action is registered
+    let hasAction = params.execute != nil || params.activate != nil
+    let timeout: TimeInterval = hasAction ? 60.0 : 5.0
+    DispatchQueue.main.asyncAfter(deadline: .now() + timeout) {
+        NSApplication.shared.terminate(nil)
+    }
+} else if CommandLine.arguments.count <= 1 {
+    // Launched by macOS for a notification click (no arguments).
+    // Run briefly to let didReceive handle the pending click, then exit.
+    DispatchQueue.main.asyncAfter(deadline: .now() + 5.0) {
+        NSApplication.shared.terminate(nil)
+    }
+} else {
+    fputs("Error: -m (message) is required\n", stderr)
+    printUsage()
+    exit(1)
 }
 
 app.run()
