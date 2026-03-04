@@ -156,12 +156,14 @@ func printUsage() {
 // Parse arguments
 var params = NotificationParams()
 var message: String?
+var hasUserFlags = false
 
 var i = 1
 let args = CommandLine.arguments
 while i < args.count {
     switch args[i] {
     case "-t", "--title":
+        hasUserFlags = true
         i += 1
         guard i < args.count else {
             fputs("Error: -t requires a value\n", stderr)
@@ -169,6 +171,7 @@ while i < args.count {
         }
         params.title = args[i]
     case "-m", "--message":
+        hasUserFlags = true
         i += 1
         guard i < args.count else {
             fputs("Error: -m requires a value\n", stderr)
@@ -176,6 +179,7 @@ while i < args.count {
         }
         message = args[i]
     case "-e", "--execute":
+        hasUserFlags = true
         i += 1
         guard i < args.count else {
             fputs("Error: -e requires a value\n", stderr)
@@ -183,6 +187,7 @@ while i < args.count {
         }
         params.execute = args[i]
     case "-a", "--activate":
+        hasUserFlags = true
         i += 1
         guard i < args.count else {
             fputs("Error: -a requires a value\n", stderr)
@@ -190,6 +195,7 @@ while i < args.count {
         }
         params.activate = args[i]
     case "--sound":
+        hasUserFlags = true
         i += 1
         guard i < args.count else {
             fputs("Error: --sound requires a value\n", stderr)
@@ -197,6 +203,7 @@ while i < args.count {
         }
         params.sound = args[i]
     case "--icon":
+        hasUserFlags = true
         i += 1
         guard i < args.count else {
             fputs("Error: --icon requires a value\n", stderr)
@@ -207,6 +214,8 @@ while i < args.count {
         printUsage()
         exit(0)
     default:
+        // LaunchServices may pass -psn_* when launching a .app bundle; ignore it.
+        if args[i].hasPrefix("-psn_") { break }
         fputs("Error: unknown option '\(args[i])'\n", stderr)
         printUsage()
         exit(1)
@@ -233,10 +242,10 @@ if let message = message {
     DispatchQueue.main.asyncAfter(deadline: .now() + timeout) {
         NSApplication.shared.terminate(nil)
     }
-} else if CommandLine.arguments.count <= 1 {
-    // Launched by macOS for a notification click (no arguments).
+} else if !hasUserFlags {
+    // Launched by macOS for a notification click (no user flags, possibly only -psn_*).
     // Run briefly to let didReceive handle the pending click, then exit.
-    DispatchQueue.main.asyncAfter(deadline: .now() + 5.0) {
+    DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
         NSApplication.shared.terminate(nil)
     }
 } else {
