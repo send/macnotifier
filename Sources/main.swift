@@ -150,6 +150,9 @@ func printUsage() {
           --sound <name>       Sound name in ~/Library/Sounds or /System/Library/Sounds (e.g. "Glass")
           --icon <path>        Path to image file to attach as icon
       -h, --help               Show this help message
+
+    When launched with no arguments (e.g. by macOS for a stale notification
+    click), the app runs briefly to handle the pending click action, then exits.
     """)
 }
 
