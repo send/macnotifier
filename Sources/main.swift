@@ -1,12 +1,20 @@
 import Cocoa
 import UserNotifications
 
+// Cancelable termination timer; didReceive cancels it to avoid racing.
+var terminationWork: DispatchWorkItem?
+
 class NotificationDelegate: NSObject, UNUserNotificationCenterDelegate {
     func userNotificationCenter(
         _ center: UNUserNotificationCenter,
         didReceive response: UNNotificationResponse,
         withCompletionHandler completionHandler: @escaping () -> Void
     ) {
+        // Cancel the termination timer so the app stays alive for click handling.
+        // cancel() is thread-safe; the variable is written once before app.run()
+        // and only read here, so no synchronization is needed.
+        terminationWork?.cancel()
+
         let userInfo = response.notification.request.content.userInfo
         // Execute shell command
         if let command = userInfo["execute"] as? String {
@@ -150,12 +158,18 @@ func printUsage() {
           --sound <name>       Sound name in ~/Library/Sounds or /System/Library/Sounds (e.g. "Glass")
           --icon <path>        Path to image file to attach as icon
       -h, --help               Show this help message
+
+    When launched with no arguments (e.g. by macOS for a stale notification
+    click), the app runs briefly to handle the pending click action, then exits.
     """)
 }
 
 // Parse arguments
 var params = NotificationParams()
 var message: String?
+
+// Determine if any user-facing flags were passed (ignoring -psn_* from LaunchServices).
+let hasUserFlags = CommandLine.arguments.dropFirst().contains { !$0.hasPrefix("-psn_") }
 
 var i = 1
 let args = CommandLine.arguments
@@ -207,6 +221,8 @@ while i < args.count {
         printUsage()
         exit(0)
     default:
+        // LaunchServices may pass -psn_* when launching a .app bundle; ignore it.
+        if args[i].hasPrefix("-psn_") { break }
         fputs("Error: unknown option '\(args[i])'\n", stderr)
         printUsage()
         exit(1)
@@ -214,27 +230,34 @@ while i < args.count {
     i += 1
 }
 
-guard let message = message else {
-    fputs("Error: -m (message) is required\n", stderr)
-    printUsage()
-    exit(1)
-}
-params.message = message
-
-// Launch application
+// Launch application and register delegate BEFORE validating -m.
+// When macOS relaunches the app for a stale notification click, no arguments
+// are passed. The delegate must be ready so didReceive can handle the click.
 let app = NSApplication.shared
 app.setActivationPolicy(.accessory)
 
 let delegate = NotificationDelegate()
 UNUserNotificationCenter.current().delegate = delegate
 
-sendNotification(params)
+if let message = message {
+    params.message = message
+    sendNotification(params)
 
-// Terminate after timeout; use a shorter timeout when no click action is registered
-let hasAction = params.execute != nil || params.activate != nil
-let timeout: TimeInterval = hasAction ? 60.0 : 5.0
-DispatchQueue.main.asyncAfter(deadline: .now() + timeout) {
-    NSApplication.shared.terminate(nil)
+    // Terminate after timeout; use a shorter timeout when no click action is registered
+    let hasAction = params.execute != nil || params.activate != nil
+    let timeout: TimeInterval = hasAction ? 60.0 : 5.0
+    terminationWork = DispatchWorkItem { NSApplication.shared.terminate(nil) }
+    DispatchQueue.main.asyncAfter(deadline: .now() + timeout, execute: terminationWork!)
+} else if !hasUserFlags {
+    // Launched by macOS for a notification click (no user flags, possibly only -psn_*).
+    // Run briefly to let didReceive handle the pending click, then exit.
+    // didReceive cancels this timer to avoid racing.
+    terminationWork = DispatchWorkItem { NSApplication.shared.terminate(nil) }
+    DispatchQueue.main.asyncAfter(deadline: .now() + 2.0, execute: terminationWork!)
+} else {
+    fputs("Error: -m (message) is required\n", stderr)
+    printUsage()
+    exit(1)
 }
 
 app.run()
