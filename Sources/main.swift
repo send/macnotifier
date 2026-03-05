@@ -239,21 +239,24 @@ app.setActivationPolicy(.accessory)
 let delegate = NotificationDelegate()
 UNUserNotificationCenter.current().delegate = delegate
 
+func scheduleTermination(after seconds: TimeInterval) {
+    let work = DispatchWorkItem { NSApplication.shared.terminate(nil) }
+    terminationWork = work
+    DispatchQueue.main.asyncAfter(deadline: .now() + seconds, execute: work)
+}
+
 if let message = message {
     params.message = message
     sendNotification(params)
 
     // Terminate after timeout; use a shorter timeout when no click action is registered
     let hasAction = params.execute != nil || params.activate != nil
-    let timeout: TimeInterval = hasAction ? 60.0 : 5.0
-    terminationWork = DispatchWorkItem { NSApplication.shared.terminate(nil) }
-    DispatchQueue.main.asyncAfter(deadline: .now() + timeout, execute: terminationWork!)
+    scheduleTermination(after: hasAction ? 60.0 : 5.0)
 } else if !hasUserFlags {
     // Launched by macOS for a notification click (no user flags, possibly only -psn_*).
     // Run briefly to let didReceive handle the pending click, then exit.
     // didReceive cancels this timer to avoid racing.
-    terminationWork = DispatchWorkItem { NSApplication.shared.terminate(nil) }
-    DispatchQueue.main.asyncAfter(deadline: .now() + 2.0, execute: terminationWork!)
+    scheduleTermination(after: 2.0)
 } else {
     fputs("Error: -m (message) is required\n", stderr)
     printUsage()
