@@ -240,8 +240,9 @@ let delegate = NotificationDelegate()
 UNUserNotificationCenter.current().delegate = delegate
 
 func scheduleTermination(after seconds: TimeInterval) {
-    terminationWork = DispatchWorkItem { NSApplication.shared.terminate(nil) }
-    DispatchQueue.main.asyncAfter(deadline: .now() + seconds, execute: terminationWork!)
+    let work = DispatchWorkItem { NSApplication.shared.terminate(nil) }
+    terminationWork = work
+    DispatchQueue.main.asyncAfter(deadline: .now() + seconds, execute: work)
 }
 
 if let message = message {
